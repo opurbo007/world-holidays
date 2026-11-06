@@ -1,12 +1,36 @@
 import raw from "../data/holidays.json";
-import type { Country, CountryHolidays, FlatHoliday, Holiday } from "./types";
+import {
+  filterHolidays,
+  findNext,
+  findOn,
+  findUpcoming,
+  type StoredHoliday,
+} from "./core";
+import type {
+  Country,
+  CountryHolidays,
+  FlatHoliday,
+  Holiday,
+  HolidayOptions,
+  MonthInput,
+  YearInput,
+} from "./types";
 
-export type { Country, CountryHolidays, FlatHoliday, Holiday } from "./types";
+export type {
+  Country,
+  CountryCalendar,
+  CountryHolidays,
+  FlatHoliday,
+  Holiday,
+  HolidayOptions,
+  MonthInput,
+  YearInput,
+} from "./types";
 
 type Data = {
   generatedAt: string;
   years: number[];
-  countries: Record<string, { name: string; holidays: Holiday[] }>;
+  countries: Record<string, { name: string; holidays: StoredHoliday[] }>;
 };
 
 const data = raw as unknown as Data;
@@ -18,20 +42,16 @@ export const years: number[] = data.years;
 export const generatedAt: string = data.generatedAt;
 
 function lookup(code: string) {
-  const entry = data.countries[code.toUpperCase()];
-  if (!entry) throw new Error(`Unknown country code: "${code}"`);
+  const entry = data.countries[code.trim().toUpperCase()];
+  if (!entry) {
+    throw new Error(
+      `Unknown country code: "${code}". Use searchCountries("${code}") to find it.`,
+    );
+  }
   return entry;
 }
 
-function localISODate(d: Date): string {
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${m}-${day}`;
-}
-
-function toISO(date: Date | string): string {
-  return typeof date === "string" ? date.slice(0, 10) : localISODate(date);
-}
+// ---------- countries ----------
 
 /** All supported countries */
 export function getCountries(): Country[] {
@@ -41,34 +61,48 @@ export function getCountries(): Country[] {
   }));
 }
 
-/** Public holidays of one country. Omit year to get all covered years. */
-export function getHolidays(code: string, year?: number): Holiday[] {
-  const { holidays } = lookup(code);
-  if (year === undefined) return holidays;
-  if (!years.includes(year)) {
-    throw new RangeError(
-      `Year ${year} is not covered. Available: ${years.join(", ")}`,
-    );
-  }
-  return holidays.filter((h) => h.date.startsWith(`${year}-`));
+/** Find countries by code or part of the name: searchCountries("bangla") */
+export function searchCountries(query: string): Country[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return getCountries().filter(
+    (c) => c.code.toLowerCase() === q || c.name.toLowerCase().includes(q),
+  );
 }
 
-/** Every country with its holidays (all covered years, or one year) */
-export function getWorldHolidays(year?: number): CountryHolidays[] {
-  return Object.keys(data.countries).map((code) => ({
-    code,
-    name: data.countries[code].name,
-    holidays: getHolidays(code, year),
-  }));
+// ---------- one country ----------
+
+/**
+ * Public holidays of one country. Every option is optional.
+ *   getHolidays("BD")                                -> this year
+ *   getHolidays("BD", 2027)                          -> a specific year
+ *   getHolidays("BD", { year: "next" })              -> next year
+ *   getHolidays("BD", { month: "March" })            -> one month of this year
+ *   getHolidays("BD", { year: 2027, month: 12 })     -> one month of a year
+ *   getHolidays("BD", { year: "all" })               -> every covered year
+ */
+export function getHolidays(
+  code: string,
+  options?: number | HolidayOptions,
+): Holiday[] {
+  return filterHolidays(lookup(code).holidays, years, options);
 }
 
-/** Flat list across all countries, sorted by date */
-export function getAllHolidaysFlat(year?: number): FlatHoliday[] {
-  return getWorldHolidays(year)
-    .flatMap((c) =>
-      c.holidays.map((h) => ({ ...h, country: c.code, countryName: c.name })),
-    )
-    .sort((a, b) => a.date.localeCompare(b.date));
+/** Whole year of a country (default: current year) */
+export function getYearHolidays(
+  code: string,
+  year: YearInput = "current",
+): Holiday[] {
+  return getHolidays(code, { year });
+}
+
+/** One month of a country (default: current year) */
+export function getMonthHolidays(
+  code: string,
+  month: MonthInput,
+  year: YearInput = "current",
+): Holiday[] {
+  return getHolidays(code, { year, month });
 }
 
 /** Is this date a public holiday in the country? Returns the holiday or null */
@@ -76,8 +110,7 @@ export function isHoliday(
   code: string,
   date: Date | string = new Date(),
 ): Holiday | null {
-  const iso = toISO(date);
-  return lookup(code).holidays.find((h) => h.date === iso) ?? null;
+  return findOn(lookup(code).holidays, date);
 }
 
 /** Next public holiday on or after the given date (default: today) */
@@ -85,6 +118,38 @@ export function getNextHoliday(
   code: string,
   from: Date | string = new Date(),
 ): Holiday | null {
-  const iso = toISO(from);
-  return lookup(code).holidays.find((h) => h.date >= iso) ?? null;
+  return findNext(lookup(code).holidays, from);
+}
+
+/** The next N public holidays (default 5) from a date (default: today) */
+export function getUpcomingHolidays(
+  code: string,
+  limit = 5,
+  from: Date | string = new Date(),
+): Holiday[] {
+  return findUpcoming(lookup(code).holidays, limit, from);
+}
+
+// ---------- whole world ----------
+
+/** Every country with its holidays. Same options as getHolidays. */
+export function getWorldHolidays(
+  options?: number | HolidayOptions,
+): CountryHolidays[] {
+  return Object.entries(data.countries).map(([code, c]) => ({
+    code,
+    name: c.name,
+    holidays: filterHolidays(c.holidays, years, options),
+  }));
+}
+
+/** Flat list across all countries, sorted by date. Same options as getHolidays. */
+export function getAllHolidaysFlat(
+  options?: number | HolidayOptions,
+): FlatHoliday[] {
+  return getWorldHolidays(options)
+    .flatMap((c) =>
+      c.holidays.map((h) => ({ ...h, country: c.code, countryName: c.name })),
+    )
+    .sort((a, b) => a.date.localeCompare(b.date));
 }

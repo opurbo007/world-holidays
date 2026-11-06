@@ -1,0 +1,41 @@
+# world-holidays
+
+Public holidays for every country, for the current and next year.
+Zero runtime dependencies, fully typed.
+
+```bash
+npm i world-holidays
+```
+
+```ts
+import { getHolidays, isHoliday, getNextHoliday, getWorldHolidays } from "world-holidays";
+
+getHolidays("BD", 2027);          // [{ date: "2027-02-21", name: "..." }, ...]
+isHoliday("US", "2026-12-25");    // { date: "2026-12-25", name: "Christmas Day" }
+getNextHoliday("JP");             // next holiday from today
+getWorldHolidays(2027);           // every country with its holidays
+```
+
+## API
+
+| Function | Returns |
+| --- | --- |
+| `getCountries()` | `{ code, name }[]` |
+| `getHolidays(code, year?)` | holidays of one country |
+| `getWorldHolidays(year?)` | all countries with holidays |
+| `getAllHolidaysFlat(year?)` | flat list, sorted by date |
+| `isHoliday(code, date?)` | the holiday or `null` |
+| `getNextHoliday(code, from?)` | the next holiday or `null` |
+| `years`, `generatedAt` | coverage info |
+
+## Notes
+
+Dates are calculated from rules, not taken from government announcements.
+Holidays based on moon sighting (for example Eid) can differ by a day.
+Always verify critical dates against official sources.
+
+## Data and license
+
+Code: MIT. Holiday data is derived from
+[date-holidays](https://github.com/commenthol/date-holidays) and is licensed
+under CC BY-SA 3.0. See DATA_LICENSE.md.
