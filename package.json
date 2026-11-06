@@ -1,0 +1,37 @@
+{
+  "name": "world-holidays",
+  "version": "0.1.0",
+  "description": "Public holidays for every country, current and next year. Zero dependencies.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "generate": "tsx scripts/generate.ts",
+    "build": "npm run generate && tsup src/index.ts --format esm,cjs --dts --clean"
+  },
+  "keywords": [
+    "holidays",
+    "public-holidays",
+    "countries",
+    "calendar"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "date-holidays": "^3.38.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}
