@@ -1,5 +1,11 @@
 import Holidays from "date-holidays";
-import { writeFileSync, mkdirSync, rmSync } from "node:fs";
+import {
+  writeFileSync,
+  mkdirSync,
+  rmSync,
+  existsSync,
+  readFileSync,
+} from "node:fs";
 
 const thisYear = new Date().getFullYear();
 const YEARS = [thisYear, thisYear + 1];
@@ -37,7 +43,21 @@ for (const [code, name] of Object.entries(countries)) {
   if (unique.length === 0) empty++;
   out[code] = { name, holidays: unique };
 }
+// Keep the old timestamp when nothing changed, so git sees no diff
+const next = { years: YEARS, countries: out };
+let generatedAt = new Date().toISOString();
+if (existsSync("data/holidays.json")) {
+  const prev = JSON.parse(readFileSync("data/holidays.json", "utf8"));
+  if (
+    JSON.stringify({ years: prev.years, countries: prev.countries }) ===
+    JSON.stringify(next)
+  ) {
+    generatedAt = prev.generatedAt;
+  }
+}
 
+mkdirSync("data", { recursive: true });
+writeFileSync("data/holidays.json", JSON.stringify({ generatedAt, ...next }));
 mkdirSync("data", { recursive: true });
 writeFileSync(
   "data/holidays.json",

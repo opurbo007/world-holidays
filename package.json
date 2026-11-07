@@ -16,7 +16,18 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
-    }
+    },
+    "./country/*": {
+      "import": {
+        "types": "./dist/countries/*.d.ts",
+        "default": "./dist/countries/*.js"
+      },
+      "require": {
+        "types": "./dist/countries/*.d.cts",
+        "default": "./dist/countries/*.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -31,7 +42,7 @@
   "license": "(MIT AND CC-BY-SA-3.0)",
   "scripts": {
     "generate": "tsx scripts/generate.ts",
-    "build": "npm run generate && tsup src/index.ts --format esm,cjs --dts --clean",
+    "build": "npm run generate && tsup",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

@@ -1,41 +1,188 @@
 # world-holidays
 
-Public holidays for every country, for the current and next year.
-Zero runtime dependencies, fully typed.
+Public holidays for **every country**, for the current and next year.
+Zero runtime dependencies, fully typed, works in Node and the browser.
+
+[![npm](https://img.shields.io/npm/v/world-holidays)](https://www.npmjs.com/package/world-holidays)
+[![CI](https://github.com/opurbo007/world-holidays/actions/workflows/ci.yml/badge.svg)](https://github.com/opurbo007/world-holidays/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/world-holidays)](#license)
 
 ```bash
 npm i world-holidays
 ```
 
-```ts
-import { getHolidays, isHoliday, getNextHoliday, getWorldHolidays } from "world-holidays";
+## Quick start
 
-getHolidays("BD", 2027);          // [{ date: "2027-02-21", name: "..." }, ...]
-isHoliday("US", "2026-12-25");    // { date: "2026-12-25", name: "Christmas Day" }
-getNextHoliday("JP");             // next holiday from today
-getWorldHolidays(2027);           // every country with its holidays
+```ts
+import { getHolidays } from "world-holidays";
+
+getHolidays("BD"); // whole current year
+getHolidays("BD", 2027); // a specific year
+getHolidays("BD", { year: "next" }); // next year
+getHolidays("BD", { month: "March" }); // one month of this year
+getHolidays("BD", { year: 2027, month: 12 }); // one month of a specific year
+getHolidays("BD", { year: "all" }); // every covered year
+```
+
+Every option is optional. Each holiday looks like this:
+
+```ts
+{ date: "2026-12-16", name: "Victory Day", weekday: "Wednesday" }
+```
+
+Dates are `YYYY-MM-DD` in the country's local calendar, so there are no timezone surprises.
+
+## Find a country
+
+You don't need to know the ISO code. Search by code or part of the name:
+
+```ts
+import { searchCountries, getCountries } from "world-holidays";
+
+searchCountries("bangla"); // [{ code: "BD", name: "People's Republic of Bangladesh" }]
+getCountries(); // all 207 countries as { code, name }[]
+```
+
+## More examples
+
+```ts
+import {
+  getMonthHolidays,
+  getYearHolidays,
+  isHoliday,
+  getNextHoliday,
+  getUpcomingHolidays,
+  getWorldHolidays,
+  getAllHolidaysFlat,
+} from "world-holidays";
+
+getYearHolidays("JP", "next"); // shortcut for a year
+getMonthHolidays("US", "dec", 2026); // shortcut for a month
+
+isHoliday("US", "2026-12-25"); // { date, name: "Christmas Day", weekday: "Friday" }
+isHoliday("US", new Date()); // holiday object, or null
+
+getNextHoliday("BD"); // next holiday from today
+getNextHoliday("BD", "2026-11-06"); // next holiday from a date
+getUpcomingHolidays("GB", 3); // next 3 holidays from today
+
+getWorldHolidays({ year: 2026, month: "December" }); // every country, grouped
+getAllHolidaysFlat({ year: 2027, month: "January" }); // one flat list, sorted by date
+```
+
+## Per-country import (small bundles)
+
+`import ... from "world-holidays"` includes all 207 countries (about 250 KB, 26 KB gzipped).
+If your frontend needs one country, import just that one:
+
+```ts
+import { country } from "world-holidays/country/BD";
+
+country.getHolidays({ month: "December" });
+country.getNextHoliday();
+country.getUpcomingHolidays(5);
+```
+
+A single-country bundle is about **3 KB** (1.3 KB gzipped).
+
+- Use the **uppercase** country code in the path: `/country/BD`, not `/country/bd`.
+  Linux servers and Vercel are case-sensitive.
+- There is also a default export: `import bd from "world-holidays/country/BD"`.
+- CommonJS: `const { country } = require("world-holidays/country/BD")`.
+
+The country object has the same methods as the main package, without the country argument:
+`getHolidays`, `getYearHolidays`, `getMonthHolidays`, `isHoliday`, `getNextHoliday`, `getUpcomingHolidays`.
+
+### Example: Next.js server component
+
+```tsx
+import { country } from "world-holidays/country/BD";
+
+export default function UpcomingHolidays() {
+  const list = country.getUpcomingHolidays(5);
+
+  return (
+    <ul>
+      {list.map((h) => (
+        <li key={h.date}>
+          {h.date} ({h.weekday}): {h.name}
+        </li>
+      ))}
+    </ul>
+  );
+}
 ```
 
 ## API
 
-| Function | Returns |
-| --- | --- |
-| `getCountries()` | `{ code, name }[]` |
-| `getHolidays(code, year?)` | holidays of one country |
-| `getWorldHolidays(year?)` | all countries with holidays |
-| `getAllHolidaysFlat(year?)` | flat list, sorted by date |
-| `isHoliday(code, date?)` | the holiday or `null` |
-| `getNextHoliday(code, from?)` | the next holiday or `null` |
-| `years`, `generatedAt` | coverage info |
+All functions that take a country accept the ISO code, case-insensitive (`"bd"` and `"BD"` both work).
 
-## Notes
+| Function                                   | Returns                                                                    |
+| ------------------------------------------ | -------------------------------------------------------------------------- |
+| `getHolidays(code, options?)`              | Holidays of one country. `options` is `{ year?, month? }` or a year number |
+| `getYearHolidays(code, year?)`             | Whole year (default: current year)                                         |
+| `getMonthHolidays(code, month, year?)`     | One month (default: current year)                                          |
+| `isHoliday(code, date?)`                   | The holiday on that date, or `null`                                        |
+| `getNextHoliday(code, from?)`              | The next holiday on or after a date, or `null`                             |
+| `getUpcomingHolidays(code, limit?, from?)` | The next `limit` holidays (default 5)                                      |
+| `getWorldHolidays(options?)`               | Every country with its holidays                                            |
+| `getAllHolidaysFlat(options?)`             | One flat list across all countries, sorted by date                         |
+| `getCountries()`                           | All supported countries                                                    |
+| `searchCountries(query)`                   | Countries matching a code or part of a name                                |
+| `years`                                    | Years covered by this version, e.g. `[2026, 2027]`                         |
+| `generatedAt`                              | When the data was generated (ISO string)                                   |
 
-Dates are calculated from rules, not taken from government announcements.
-Holidays based on moon sighting (for example Eid) can differ by a day.
-Always verify critical dates against official sources.
+### Options
 
-## Data and license
+| Option  | Values                                           | Default        |
+| ------- | ------------------------------------------------ | -------------- |
+| `year`  | a number, `"current"`, `"next"`, or `"all"`      | `"current"`    |
+| `month` | `1`-`12`, or a name such as `"March"` or `"mar"` | the whole year |
 
-Code: MIT. Holiday data is derived from
-[date-holidays](https://github.com/commenthol/date-holidays) and is licensed
-under CC BY-SA 3.0. See DATA_LICENSE.md.
+### Errors
+
+Bad input throws a clear error instead of returning wrong data:
+
+- Unknown country code: `Error`, with a hint to use `searchCountries()`.
+- A year that is not covered: `RangeError`, listing the available years.
+- An invalid month: `RangeError`.
+
+### TypeScript
+
+Types are included: `Holiday`, `Country`, `CountryHolidays`, `FlatHoliday`, `CountryCalendar`, `HolidayOptions`, `YearInput`, `MonthInput`.
+
+## Good to know
+
+- **Only official public holidays** are included. Bank holidays, observances and optional days are left out.
+- **Substitute days are included.** For example, the UK returns `Boxing Day (substitute day)` when Boxing Day falls on a weekend. Filter on the name if you don't want them.
+- **Dates are calculated from rules**, not copied from government announcements.
+  Holidays based on moon sighting (for example Eid) can differ by a day.
+  Always verify critical dates against an official source.
+- **Coverage is two years**: the year the data was generated and the next one.
+  `year: "current"` keeps working for the whole of the covered years, even if you don't update the package.
+
+## How the data stays fresh
+
+The holiday data is generated at build time from [date-holidays](https://github.com/commenthol/date-holidays).
+A scheduled GitHub Action runs monthly, pulls the newest rules, regenerates the data, and publishes a new
+version only when something changed. On 1 January the covered years move forward automatically.
+
+To regenerate locally:
+
+```bash
+npm install
+npm run build   # generates data, builds the package
+npm test
+```
+
+## Contributing
+
+Issues and pull requests are welcome. If a holiday is wrong or missing, please include the country,
+the year, and an official source. Data fixes usually belong upstream in
+[date-holidays](https://github.com/commenthol/date-holidays), and they reach this package on the next update.
+
+## License
+
+The code is licensed under **MIT**. The holiday data is derived from
+[date-holidays](https://github.com/commenthol/date-holidays) and is licensed under
+[CC BY-SA 3.0](http://creativecommons.org/licenses/by-sa/3.0/). See `LICENSE` and `DATA_LICENSE.md`.
